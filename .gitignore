@@ -1,0 +1,5 @@
+*credentials*
+!credentials.auto.tfvars.tpl
+.terraform/
+*.tfstate*
+.terraform.lock*

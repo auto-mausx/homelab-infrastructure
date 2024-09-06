@@ -1,0 +1,73 @@
+- hosts: dns_server
+  become: yes
+  tasks:
+
+    - name: Setup config file configuration
+      ansible.builtin.file:
+        path: /etc/bind
+        state: directory
+
+    - name: Copy local named config to hosts
+      ansible.builtin.copy:
+        src: ./config/named.conf
+        dest: /etc/bind/named.conf
+
+    - name: Copy local zone file to hosts
+      ansible.builtin.copy:
+        src: ./config/dns-cloudology-dev.zone
+        dest: /etc/bind/dns-cloudology-dev.zone
+
+    - name: Setup cache file configuration
+      ansible.builtin.file:
+        path: /var/cache/bind
+        state: directory
+
+    - name: Setup records file configuration
+      ansible.builtin.file:
+        path: /var/lib/bind
+        state: directory
+
+    - name: Edit systemd resolved
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/resolved.conf
+        regexp: '^#DNSStubListener='
+        line: DNSStubListener=no
+
+    - name: Add NS resolv.conf
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: nameserver 8.8.8.8
+
+    - name: Add another resolv.conf
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: nameserver 8.8.4.4
+
+    - name: Restart systemd resolved service
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: restarted
+
+    - name: Reload docker daemon
+      ansible.builtin.systemd_service:
+        name: docker.service
+        state: reloaded
+        daemon_reload: true
+
+    - name : Run Bind9 container
+      become: yes
+      community.docker.docker_container:
+          name: bind9
+          image: ubuntu/bind9:latest
+          ports:
+            - "53:53/tcp"
+            - "53:53/udp"
+          env:
+            BIND9_USER: root
+            TZ: America/Denver
+          volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /etc/bind:/etc/bind
+            - /var/cache/bind:/var/cache/bind
+            - /var/lib/bind:/var/lib/bind
+          restart_policy: always

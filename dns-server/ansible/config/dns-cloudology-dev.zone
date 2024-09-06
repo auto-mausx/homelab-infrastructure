@@ -1,0 +1,16 @@
+$TTL 2d
+
+$ORIGIN dns.cloudology.dev.
+
+@             IN     SOA    edna.ns.cloudflare.com. dns.cloudflare.com. (
+                            2024090500     ; serial
+                            12h            ; refresh
+                            15m            ; retry
+                            3w             ; expire
+                            2h )           ; minimum TTL
+
+              IN     NS     ns.dns.cloudology.dev.
+
+ns            IN     A      192.168.1.66
+
+prox    IN     A      192.168.1.64
