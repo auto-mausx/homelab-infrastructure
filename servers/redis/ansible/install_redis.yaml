@@ -1,0 +1,29 @@
+---
+- hosts: redis
+  become: yes
+  tasks:
+
+  - name: Create redis dir on server
+    ansible.builtin.file:
+        path: /etc/redis
+        state: directory
+
+  - name: Copy redis config to server
+    ansible.builtin.copy:
+        src: ./config/redis-stack.conf
+        dest: /etc/redis/redis-stack.conf
+
+  - name : Run redis container
+    become: yes
+    community.docker.docker_container:
+        name: redis
+        image: redis/redis-stack:latest
+        ports:
+          - "6379:6379"
+          - "8001:8001"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - /etc/redis/redis-stack.conf:/redis-stack.conf
+          - /mnt/redis:/data
+
+        restart_policy: always
