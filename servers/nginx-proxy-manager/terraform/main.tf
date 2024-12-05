@@ -6,9 +6,9 @@ resource "proxmox_vm_qemu" "your-vm" {
 
   # VM General Settings
   target_node = "prox"
-  vmid        = "106"
-  name        = "vault"
-  desc        = "Internal vault server"
+  vmid        = "107"
+  name        = "nginx"
+  desc        = "Internal nginx reverse proxy manager"
 
   # VM Advanced General Settings
   onboot = true
@@ -26,11 +26,11 @@ resource "proxmox_vm_qemu" "your-vm" {
   cpu     = "host"
 
   # VM Memory Settings
-  memory = 8192
+  memory = 2048
 
   # VM Network Settings
   network {
-    bridge = "vmbr1"
+    bridge = "vmbr0"
     model  = "virtio"
   }
 
@@ -52,12 +52,6 @@ resource "proxmox_vm_qemu" "your-vm" {
       virtio0 {
         disk {
           size    = 20
-          storage = "vm-storage"
-        }
-      }
-      virtio1 {
-        disk {
-          size    = 100
           storage = "vm-storage"
         }
       }

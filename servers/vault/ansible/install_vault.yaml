@@ -1,6 +1,60 @@
 ---
 - hosts: vault
   tasks:
+ 
+  - name: Create Vault group
+    become: yes
+    ansible.builtin.group:
+      name: vault
+      state: present
 
-  
-  
+  - name: Create a Vault user
+    become: yes
+    ansible.builtin.user:
+      name: vault
+      group: vault
+      create_home: yes
+
+  - name: Add config file path to VM
+    become: yes
+    ansible.builtin.file:
+        path: /etc/vault
+        state: directory
+
+  - name: Add config file to path
+    become: yes
+    ansible.builtin.copy:
+        src: ./config/config.hcl
+        dest: /etc/vault/config.hcl
+
+  - name: Add proper ownerships to files
+    become: yes
+    shell: |
+      chown -R vault:vault /etc/vault/
+      chown -R vault:vault /mnt/vault/
+
+  - name: Get service facts
+    ansible.builtin.service_facts:
+
+  - name: Download and install Hashicorp vault
+    become: yes
+    when: ansible_facts.services['vault.service'] is not defined
+    shell: |
+      wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+      sudo apt update && sudo apt install vault
+
+
+  - name: Set mlock disable settings
+    become: yes
+    shell: setcap cap_ipc_lock=+ep $(readlink -f $(which vault))
+
+  - name: Enable vault service
+    when: ansible_facts.services['vault.service'] is disabled
+    become: yes
+    shell: systemctl enable vault
+
+  - name: Start the Vault server
+    when: ansible_facts.services['vault.service'] is not active
+    become: yes
+    shell: vault server -config=/etc/vault/config.hcl &
