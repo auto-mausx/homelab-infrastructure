@@ -1,0 +1,43 @@
+---
+- hosts: simplex
+  become: yes
+  tasks:
+
+  - name: Create simplex dir on server
+    ansible.builtin.file:
+        path: /etc/simplex/xftp
+        state: directory
+
+  - name: Create simplex config file on server
+    ansible.builtin.file:
+        path: /etc/simplex/xftp/config
+        state: file
+
+  - name: Create simplex log file on server
+    ansible.builtin.file:
+        path: /etc/simplex/xftp/log
+        state: file
+
+
+  - name: Create simplex files file on server
+    ansible.builtin.file:
+        path: /etc/simplex/xftp/files
+        state: file
+
+  - name : Run simplex container
+    become: yes
+    community.docker.docker_container:
+        name: simplex
+        image: simplexchat/xftp-server:latest
+        env:
+          ADDR: chat.cloudology.dev
+          QUOTA: 500GB
+        ports:
+          - "443:443"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - /etc/simplex/xftp/logs:/var/opt/simplex-xftp:z
+          - /etc/simplex/xftp/config:/etc/opt/simplex-xftp:z
+          - /etc/simplex/xftp/files:/srv/xftp:z
+
+        restart_policy: always
