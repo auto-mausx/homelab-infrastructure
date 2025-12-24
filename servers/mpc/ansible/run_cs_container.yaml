@@ -1,0 +1,18 @@
+---
+- hosts: chain_sig
+  tasks:
+
+  - name: Pull and start Chain Signatures image
+    become: yes
+    community.docker.docker_container:
+        name: multichain
+        image: us-east1-docker.pkg.dev/pagoda-discovery-platform-prod/multichain-public/multichain-testnet:latest
+        ports:
+          - "3000:3000"
+        entrypoint: ["start"]
+        env:
+          BIND9_USER: root
+          TZ: America/Denver
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        restart_policy: always

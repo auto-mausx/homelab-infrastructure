@@ -1,0 +1,26 @@
+- hosts: nginx
+  become: yes
+  tasks:
+
+    - name: Setup config file configuration
+      ansible.builtin.file:
+        path: /etc/nginx
+        state: directory
+
+    - name : Run nginx proxy manager container
+      become: yes
+      community.docker.docker_container:
+          name: npm
+          image: jlesage/nginx-proxy-manager
+          ports:
+            - "8181:8181"
+            - "80:80"
+            - "443:443"
+          env:
+            KEEP_APP_RUNNING: "1"
+            TZ: America/Denver
+            DISABLE_IPV6: "1"
+          volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /etc/nginx:/config:rw
+          restart_policy: always

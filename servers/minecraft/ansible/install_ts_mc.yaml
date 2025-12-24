@@ -1,0 +1,22 @@
+---
+- hosts: mc
+  become: yes
+  tasks:
+
+  - name: Create tailscale dir on server
+    ansible.builtin.file:
+        path: /var/lib/tailscale
+        state: directory
+
+  - name: Copy docker compose config to server
+    ansible.builtin.copy:
+        src: ./config/docker-compose.yaml
+        dest: /home/root/
+
+  - name: Copy .env config to server
+    ansible.builtin.copy:
+        src: ./config/.env
+        dest: /home/root/
+
+  - name: Run docker-compose up
+    shell: cd /home/root/ && docker compose up -d
