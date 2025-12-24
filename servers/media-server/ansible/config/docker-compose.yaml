@@ -1,0 +1,141 @@
+version: "3.9"
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./config/jellyfin:/config
+      - ./cache/jellyfin:/cache
+      - /mnt/media/movies:/movies
+      - /mnt/media/tv:/tv
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes:
+      - ./config/qbittorrent:/config
+      - /mnt/media/downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+      - WEBUI_PORT=8080
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    ports:
+      - "9696:9696"
+    volumes:
+      - ./config/prowlarr:/config
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    ports:
+      - "8989:8989"
+    volumes:
+      - ./config/sonarr:/config
+      - /mnt/media/tv:/tv
+      - /mnt/media/downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    restart: unless-stopped
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    ports:
+      - "7878:7878"
+    volumes:
+      - ./config/radarr:/config
+      - /mnt/media/movies:/movies
+      - /mnt/media/downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    restart: unless-stopped
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    ports:
+      - "5055:5055"
+    volumes:
+      - ./config/jellyseerr:/app/config
+    environment:
+      - TZ=America/Los_Angeles
+      - LOG_LEVEL=info
+    restart: unless-stopped
+
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    ports:
+      - "9117:9117"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./config/jackett:/config
+    restart: unless-stopped
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale
+    hostname: jellyfin # This name will be the one on the tailscale network
+    environment:
+      TS_AUTHKEY: "${TS_AUTH_KEY}"
+      TS_STATE_DIR: "/var/lib/tailscale"
+      TS_USERSPACE: "FALSE" # If not using Auto-pause it can be set as true
+    volumes:
+      - ./ts-jellyfin/state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+      - net_raw
+    restart: unless-stopped
+    network_mode: "host"
+    # ports: # Not needed, tailscale is directly linking to the container.
+      # - "25565:25565"
+  tailscale-watchdog:
+    image: docker:27-cli
+    container_name: tailscale-watchdog
+    restart: unless-stopped
+    depends_on:
+      - tailscale
+    environment:
+      TARGET_CONTAINER: "tailscale"
+      INTERVAL: "60"               # check every 60s (tune as you like)
+      UP_ARGS: "--reset"            # optional: e.g. "--hostname=tailscale-nextcloud"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./tailscale-watchdog.sh:/tailscale-watchdog.sh:ro
+    entrypoint: ["/bin/sh", "/tailscale-watchdog.sh"]
+
+networks:
+  default:
+    name: media_net

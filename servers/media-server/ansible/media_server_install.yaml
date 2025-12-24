@@ -1,0 +1,97 @@
+---
+- hosts: jellyfin
+  become: yes
+  vars:
+    media_device: /dev/vdb
+    media_mountpoint: /mnt/media
+    media_fstype: ext4
+  tasks:
+
+  - name: create directories if they don't exist
+    file:
+      path: "{{ item }}"
+      state: directory
+      owner: 1000
+      group: 1000
+      mode: 0775
+    loop:
+      - /opt/media-stack
+      - /var/lib/tailscale
+      - /opt/media-stack/config
+      - /opt/media-stack/config/jellyfin
+      - /opt/media-stack/config/qbittorrent
+      - /opt/media-stack/config/prowlarr
+      - /opt/media-stack/config/sonarr
+      - /opt/media-stack/config/radarr
+      - /opt/media-stack/config/jellyseerr
+      - /opt/media-stack/cache
+
+  - name: Ensure mountpoint directory exists
+    ansible.builtin.file:
+      path: "{{ media_mountpoint }}"
+      state: directory
+      owner: 1000
+      group: 1000
+      mode: "0755"
+
+    # OPTIONAL safety check: make sure the device exists
+  - name: Fail if media device does not exist
+    ansible.builtin.stat:
+      path: "{{ media_device }}"
+    register: media_device_stat
+
+  - name: Abort if media device is missing
+    ansible.builtin.fail:
+      msg: "Device {{ media_device }} does not exist on this host."
+    when: not media_device_stat.stat.exists
+
+  # Create filesystem if needed (idempotent)
+  - name: Create filesystem on media device if none exists
+    ansible.builtin.filesystem:
+      dev: "{{ media_device }}"
+      fstype: "{{ media_fstype }}"
+      state: present
+
+
+  # Mount + persist in /etc/fstab
+  - name: Mount media disk at {{ media_mountpoint }}
+    ansible.builtin.mount:
+      path: "{{ media_mountpoint }}"
+      src: "{{ media_device }}"
+      fstype: "{{ media_fstype }}"
+      opts: defaults
+      state: mounted
+
+  - name: Create media subdirectories
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: directory
+      owner: 1000
+      group: 1000
+      mode: "0755"
+    loop:
+      - "{{ media_mountpoint }}/movies"
+      - "{{ media_mountpoint }}/tv"
+      - "{{ media_mountpoint }}/downloads"
+
+  - name: Copy docker compose config to server
+    ansible.builtin.copy:
+        src: ./config/docker-compose.yaml
+        dest: /opt/media-stack
+
+  - name: Copy tailscale watchdog to server
+    ansible.builtin.copy:
+        src: ./config/tailscale-watchdog.sh
+        dest: /opt/media-stack
+        mode: a+x
+
+  - name: Copy .env config to server
+    ansible.builtin.copy:
+        src: ./config/.env
+        dest: /opt/media-stack
+
+  - name: Run docker compose up
+    ansible.builtin.shell: docker compose up -d
+    args:
+      chdir: /opt/media-stack
+
